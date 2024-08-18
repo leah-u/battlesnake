@@ -1,8 +1,6 @@
-import battlesnake/dispatcher
 import battlesnake/gamestate.{type GameState}
 import battlesnake/move
 import gleam/bool
-import gleam/erlang/process.{type Subject}
 import gleam/http
 import gleam/int
 import gleam/json.{type Json}
@@ -10,6 +8,9 @@ import gleam/option.{type Option, None, Some}
 import gleam/string
 import internal/stateful
 import wisp
+
+// move shared types to internal/types, re-export from here
+// only require immporting battlesnake
 
 pub opaque type Color {
   Color(color: String)
@@ -109,50 +110,23 @@ pub fn to_json(battlesnake: Battlesnake) -> Json {
 }
 
 pub fn stateful(
-  battlesnake: Battlesnake,
-  start: fn(GameState) -> state,
-  move: fn(GameState, state) -> #(move.Move, state),
-  end: fn(GameState, state) -> Nil,
-) -> Dispatcher(state) {
-  let dispatcher = dispatcher.new()
-  Dispatcher(battlesnake:, start:, move:, end:, dispatcher:)
-}
-
-pub type Dispatcher(state) {
-  Dispatcher(
-    battlesnake: Battlesnake,
-    start: fn(GameState) -> state,
-    move: fn(GameState, state) -> #(move.Move, state),
-    end: fn(GameState, state) -> Nil,
-    dispatcher: Subject(
-      dispatcher.DispatcherMessage(Subject(stateful.GameMessage)),
-    ),
-  )
-}
-
-pub fn wisp_handler(
-  req: wisp.Request,
-  dispatcher: Dispatcher(state),
-) -> wisp.Response {
+  battlesnake battlesnake: Battlesnake,
+  on_start start: fn(GameState) -> state,
+  on_move move: fn(GameState, state) -> #(move.Move, state),
+  on_end end: fn(GameState, state) -> Nil,
+) -> fn(wisp.Request) -> wisp.Response {
   let battlesnake =
-    dispatcher.battlesnake
+    battlesnake
     |> to_json
     |> json.to_string_builder
     |> wisp.json_response(200)
 
-  stateful.stateful(
-    req,
-    battlesnake,
-    dispatcher.dispatcher,
-    dispatcher.start,
-    dispatcher.move,
-    dispatcher.end,
-  )
+  stateful.stateful(battlesnake, start, move, end)
 }
 
 pub fn simple(
-  battlesnake: Battlesnake,
-  callback: fn(GameState) -> move.Move,
+  battlesnake battlesnake: Battlesnake,
+  on_move callback: fn(GameState) -> move.Move,
 ) -> fn(wisp.Request) -> wisp.Response {
   fn(request) {
     case wisp.path_segments(request) {

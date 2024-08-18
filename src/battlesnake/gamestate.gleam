@@ -28,7 +28,7 @@ pub type Board {
     width: Int,
     food: List(Position),
     hazards: List(Position),
-    snakes: List(Snake),
+    snakes: List(Battlesnake),
   )
 }
 
@@ -62,8 +62,8 @@ fn position_decoder() -> decode.Decoder(Position) {
   |> decode.field("y", decode.int)
 }
 
-pub type Snake {
-  Snake(
+pub type Battlesnake {
+  Battlesnake(
     id: String,
     name: String,
     health: Int,
@@ -77,7 +77,7 @@ pub type Snake {
   )
 }
 
-fn snake_decoder() -> decode.Decoder(Snake) {
+fn snake_decoder() -> decode.Decoder(Battlesnake) {
   decode.into({
     use id <- decode.parameter
     use name <- decode.parameter
@@ -89,7 +89,7 @@ fn snake_decoder() -> decode.Decoder(Snake) {
     use shout <- decode.parameter
     use squad <- decode.parameter
     // use customizations <- decode.parameter
-    Snake(
+    Battlesnake(
       id:,
       name:,
       health:,
@@ -114,7 +114,7 @@ fn snake_decoder() -> decode.Decoder(Snake) {
 }
 
 pub type GameState {
-  GameState(game: Game, turn: Int, board: Board, you: Snake)
+  GameState(game: Game, turn: Int, board: Board, you: Battlesnake)
 }
 
 pub type Game {

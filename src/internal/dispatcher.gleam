@@ -4,15 +4,37 @@ import gleam/io
 import gleam/otp/actor
 import gleam/result
 
+pub fn new() {
+  let assert Ok(actor) = actor.start(dict.new(), handle_message)
+  actor
+}
+
+pub fn insert(
+  dispatcher: Subject(DispatcherMessage(a)),
+  game_id: String,
+  actor: a,
+) -> Nil {
+  actor.send(dispatcher, Insert(game_id, actor))
+}
+
+pub fn get(
+  dispatcher: Subject(DispatcherMessage(a)),
+  game_id: String,
+) -> Result(a, Nil) {
+  process.try_call(dispatcher, Get(client: _, game_id:), 10)
+  |> io.debug
+  |> result.nil_error
+  |> result.flatten
+}
+
+pub fn remove(dispatcher: Subject(DispatcherMessage(a)), game_id: String) -> Nil {
+  actor.send(dispatcher, Remove(game_id))
+}
+
 pub type DispatcherMessage(a) {
   Insert(game_id: String, actor: a)
   Get(game_id: String, client: Subject(Result(a, Nil)))
   Remove(game_id: String)
-}
-
-pub fn new() {
-  let assert Ok(actor) = actor.start(dict.new(), handle_message)
-  actor
 }
 
 fn handle_message(
@@ -48,26 +70,4 @@ fn handle_message(
       actor.continue(games)
     }
   }
-}
-
-pub fn insert(
-  dispatcher: Subject(DispatcherMessage(a)),
-  game_id: String,
-  actor: a,
-) -> Nil {
-  actor.send(dispatcher, Insert(game_id, actor))
-}
-
-pub fn get(
-  dispatcher: Subject(DispatcherMessage(a)),
-  game_id: String,
-) -> Result(a, Nil) {
-  process.try_call(dispatcher, Get(client: _, game_id:), 10)
-  |> io.debug
-  |> result.nil_error
-  |> result.flatten
-}
-
-pub fn remove(dispatcher: Subject(DispatcherMessage(a)), game_id: String) -> Nil {
-  actor.send(dispatcher, Remove(game_id))
 }
