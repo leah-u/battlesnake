@@ -1,6 +1,5 @@
 import gleam/dict.{type Dict}
 import gleam/erlang/process.{type Subject}
-import gleam/io
 import gleam/otp/actor
 import gleam/result
 
@@ -15,7 +14,6 @@ pub fn insert(cache: Subject(CacheMessage(a)), game_id: String, actor: a) -> Nil
 
 pub fn get(cache: Subject(CacheMessage(a)), game_id: String) -> Result(a, Nil) {
   process.try_call(cache, Get(client: _, game_id:), 10)
-  |> io.debug
   |> result.nil_error
   |> result.flatten
 }
@@ -37,22 +35,15 @@ fn handle_message(
   case message {
     Insert(game_id:, actor:) -> {
       let games = dict.insert(games, game_id, actor)
-      io.debug(games)
       actor.continue(games)
     }
     Get(game_id:, client:) -> {
-      io.debug(games)
-      io.println("getting game id: " <> game_id)
       case dict.get(games, game_id) {
-        Error(err) -> {
-          io.println("not found: ")
-          io.debug(err)
+        Error(_) -> {
           process.send(client, Error(Nil))
           actor.continue(games)
         }
         Ok(actor) -> {
-          io.print("found: ")
-          io.debug(actor)
           process.send(client, Ok(actor))
           actor.continue(games)
         }

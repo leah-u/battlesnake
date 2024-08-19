@@ -4,7 +4,6 @@ import gleam/bool
 import gleam/erlang/process.{type Subject}
 import gleam/http
 import gleam/int
-import gleam/io
 import gleam/json.{type Json}
 import gleam/option.{type Option, None, Some}
 import gleam/otp/actor
@@ -250,17 +249,13 @@ pub fn stateful(
         use <- wisp.require_method(request, http.Post)
         use json <- wisp.require_json(request)
 
-        use gamestate <- try(gamestate.decode(json), fn() {
-          io.println("Could not decode game state")
-          wisp.bad_request()
-        })
+        use gamestate <- try(gamestate.decode(json), wisp.bad_request)
         let initial_state = start(gamestate)
         use actor <- try(
           actor.start(initial_state, game_handler),
           wisp.internal_server_error,
         )
         let game_id = gamestate.game.id
-        io.debug(games_cache)
         cache.insert(games_cache, game_id, actor)
         wisp.ok()
       }
@@ -268,12 +263,8 @@ pub fn stateful(
         use <- wisp.require_method(request, http.Post)
         use json <- wisp.require_json(request)
 
-        use gamestate <- try(gamestate.decode(json), fn() {
-          io.println("Could not decode game state")
-          wisp.bad_request()
-        })
+        use gamestate <- try(gamestate.decode(json), wisp.bad_request)
         let game_id = gamestate.game.id
-        io.debug(games_cache)
         use actor <- try(cache.get(games_cache, game_id), wisp.bad_request)
         use move <- try(
           process.try_call(actor, GameMove(client: _, gamestate:), 500),
@@ -288,10 +279,7 @@ pub fn stateful(
         use <- wisp.require_method(request, http.Post)
         use json <- wisp.require_json(request)
 
-        use gamestate <- try(gamestate.decode(json), fn() {
-          io.println("Could not decode game state")
-          wisp.bad_request()
-        })
+        use gamestate <- try(gamestate.decode(json), wisp.bad_request)
         let game_id = gamestate.game.id
         use actor <- try(cache.get(games_cache, game_id), wisp.bad_request)
         process.send(actor, GameEnd(gamestate:))
