@@ -9,38 +9,31 @@ pub fn new() {
   actor
 }
 
-pub fn insert(
-  dispatcher: Subject(DispatcherMessage(a)),
-  game_id: String,
-  actor: a,
-) -> Nil {
-  actor.send(dispatcher, Insert(game_id, actor))
+pub fn insert(cache: Subject(CacheMessage(a)), game_id: String, actor: a) -> Nil {
+  actor.send(cache, Insert(game_id, actor))
 }
 
-pub fn get(
-  dispatcher: Subject(DispatcherMessage(a)),
-  game_id: String,
-) -> Result(a, Nil) {
-  process.try_call(dispatcher, Get(client: _, game_id:), 10)
+pub fn get(cache: Subject(CacheMessage(a)), game_id: String) -> Result(a, Nil) {
+  process.try_call(cache, Get(client: _, game_id:), 10)
   |> io.debug
   |> result.nil_error
   |> result.flatten
 }
 
-pub fn remove(dispatcher: Subject(DispatcherMessage(a)), game_id: String) -> Nil {
-  actor.send(dispatcher, Remove(game_id))
+pub fn remove(cache: Subject(CacheMessage(a)), game_id: String) -> Nil {
+  actor.send(cache, Remove(game_id))
 }
 
-pub type DispatcherMessage(a) {
+pub type CacheMessage(a) {
   Insert(game_id: String, actor: a)
   Get(game_id: String, client: Subject(Result(a, Nil)))
   Remove(game_id: String)
 }
 
 fn handle_message(
-  message: DispatcherMessage(a),
+  message: CacheMessage(a),
   games: Dict(String, a),
-) -> actor.Next(DispatcherMessage(a), Dict(String, a)) {
+) -> actor.Next(CacheMessage(a), Dict(String, a)) {
   case message {
     Insert(game_id:, actor:) -> {
       let games = dict.insert(games, game_id, actor)

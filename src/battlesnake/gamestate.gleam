@@ -137,6 +137,7 @@ fn game_decoder() -> decode.Decoder(Game) {
   |> decode.field("source", decode.string)
 }
 
+@internal
 pub fn decode(json: Dynamic) -> Result(GameState, Nil) {
   let decoder =
     decode.into({
