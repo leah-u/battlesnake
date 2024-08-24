@@ -2,6 +2,75 @@ import decode
 import gleam/dynamic.{type Dynamic}
 import gleam/result
 
+/// This gets sent by the server every time a game starts, ends, or a turn is requested
+pub type GameState {
+  GameState(game: Game, turn: Int, board: Board, you: Battlesnake)
+}
+
+/// Holds general information about the current game
+pub type Game {
+  Game(
+    /// A unique identifier for this game.
+    id: String,
+    /// Information about the ruleset being used to run this game.
+    ruleset: Ruleset,
+    /// The name of the map being played on. Example: "standard"
+    map: String,
+    /// How much time your snake has to respond to requests for this game in milliseconds. 
+    timeout: Int,
+    /// The source of this game. One of:
+    /// * "tournament"
+    /// * "league" (for League Arenas)
+    /// * "arena" (for all other Arenas)
+    /// * "challenge"
+    /// * "custom" (for all other games sources)
+    ///
+    /// The values for this field may change in the near future.
+    source: String,
+  )
+}
+
+pub type Position {
+  Position(x: Int, y: Int)
+}
+
+pub type Board {
+  Board(
+    height: Int,
+    width: Int,
+    food: List(Position),
+    hazards: List(Position),
+    snakes: List(Battlesnake),
+  )
+}
+
+pub type Battlesnake {
+  Battlesnake(
+    /// Unique identifier for this Battlesnake in the context of the current game.
+    id: String,
+    /// Name given to this Battlesnake by its author.
+    name: String,
+    /// Health value of this Battlesnake, between 0 and 100 inclusively.
+    health: Int,
+    /// List of coordinates representing this Battlesnake's location on the game
+    /// board. This list is ordered from head to tail.
+    body: List(Position),
+    /// The previous response time of this Battlesnake, in milliseconds. If the
+    /// Battlesnake timed out and failed to respond, the game timeout will be
+    /// returned (`game.timeout`).
+    latency: String,
+    head: Position,
+    length: Int,
+    shout: String,
+    squad: String,
+    customizations: Nil,
+  )
+}
+
+pub type Ruleset {
+  Ruleset(name: String, version: String, settings: RulesetSettings)
+}
+
 pub type RulesetSettings {
   RulesetSettings(
     /// Percentage chance of spawning a new food every round.
@@ -84,10 +153,6 @@ fn ruleset_settings_decoder() -> decode.Decoder(RulesetSettings) {
   |> decode.field("squad", squad_settings_decoder())
 }
 
-pub type Ruleset {
-  Ruleset(name: String, version: String, settings: RulesetSettings)
-}
-
 fn ruleset_decoder() -> decode.Decoder(Ruleset) {
   decode.into({
     use name <- decode.parameter
@@ -98,16 +163,6 @@ fn ruleset_decoder() -> decode.Decoder(Ruleset) {
   |> decode.field("name", decode.string)
   |> decode.field("version", decode.string)
   |> decode.field("settings", ruleset_settings_decoder())
-}
-
-pub type Board {
-  Board(
-    height: Int,
-    width: Int,
-    food: List(Position),
-    hazards: List(Position),
-    snakes: List(Battlesnake),
-  )
 }
 
 fn board_decoder() -> decode.Decoder(Board) {
@@ -126,10 +181,6 @@ fn board_decoder() -> decode.Decoder(Board) {
   |> decode.field("snakes", decode.list(snake_decoder()))
 }
 
-pub type Position {
-  Position(x: Int, y: Int)
-}
-
 fn position_decoder() -> decode.Decoder(Position) {
   decode.into({
     use x <- decode.parameter
@@ -138,21 +189,6 @@ fn position_decoder() -> decode.Decoder(Position) {
   })
   |> decode.field("x", decode.int)
   |> decode.field("y", decode.int)
-}
-
-pub type Battlesnake {
-  Battlesnake(
-    id: String,
-    name: String,
-    health: Int,
-    body: List(Position),
-    latency: String,
-    head: Position,
-    length: Int,
-    shout: String,
-    squad: String,
-    customizations: Nil,
-  )
 }
 
 fn snake_decoder() -> decode.Decoder(Battlesnake) {
@@ -189,14 +225,6 @@ fn snake_decoder() -> decode.Decoder(Battlesnake) {
   |> decode.field("length", decode.int)
   |> decode.field("shout", decode.string)
   |> decode.field("squad", decode.string)
-}
-
-pub type GameState {
-  GameState(game: Game, turn: Int, board: Board, you: Battlesnake)
-}
-
-pub type Game {
-  Game(id: String, ruleset: Ruleset, map: String, timeout: Int, source: String)
 }
 
 fn game_decoder() -> decode.Decoder(Game) {

@@ -7,6 +7,7 @@ import gleam/int
 import gleam/json.{type Json}
 import gleam/option.{type Option, None, Some}
 import gleam/otp/actor
+import gleam/result
 import gleam/string
 import wisp
 
@@ -26,17 +27,19 @@ fn direction_to_string(direction: Direction) -> String {
   }
 }
 
+/// The response to move requests
 pub type Move {
   Move(direction: Direction, shout: Option(String))
 }
 
+/// Create a move response with the given direction
 pub fn move(direction: Direction) -> Move {
   Move(direction:, shout: None)
 }
 
-// Limits the shout to 256 characters or less as per the specs
-fn limit_shout_length(shout: String) -> String {
-  string.slice(shout, 0, 256)
+/// Add an optional message to the move response that the other snakes can see
+pub fn shout(move: Move, shout: String) -> Move {
+  Move(..move, shout: Some(shout))
 }
 
 fn move_to_json(move: Move) -> Json {
@@ -44,24 +47,33 @@ fn move_to_json(move: Move) -> Json {
     #("move", json.string(move.direction |> direction_to_string)),
     #(
       "shout",
-      json.nullable(move.shout |> option.map(limit_shout_length), json.string),
+      json.nullable(
+        // Limit the message to 256 characters as per the docs
+        move.shout |> option.map(string.slice(_, 0, 256)),
+        json.string,
+      ),
     ),
   ])
 }
 
-pub fn shout(move: Move, shout: String) -> Move {
-  Move(..move, shout: Some(shout))
-}
-
 pub opaque type Color {
-  Color(color: String)
+  Color(red: Int, green: Int, blue: Int)
 }
 
 /// Convert a hex string to a Battlesnake color
-/// '#000000' or '000000'
+/// 
+/// Accepts the formats '#000000' or '000000'
 pub fn color_from_hex(color: String) -> Result(Color, Nil) {
-  // Todo check if valid
-  Ok(Color(color))
+  use hex <- result.try(case color, string.length(color) {
+    "#" <> rest, 7 -> Ok(rest)
+    _, 6 -> Ok(color)
+    _, _ -> Error(Nil)
+  })
+  use red <- result.try(string.slice(hex, 0, 2) |> int.base_parse(16))
+  use green <- result.try(string.slice(hex, 2, 2) |> int.base_parse(16))
+  use blue <- result.try(string.slice(hex, 4, 2) |> int.base_parse(16))
+
+  color_from_rgb(red, green, blue)
 }
 
 /// Create a Battlesnake color from red, green and blue components
@@ -71,37 +83,50 @@ pub fn color_from_rgb(
   g green: Int,
   b blue: Int,
 ) -> Result(Color, Nil) {
-  use <- bool.guard(red >= 256 || green >= 256 || blue >= 256, Error(Nil))
+  use <- bool.guard(
+    red < 0
+      || red >= 256
+      || green < 0
+      || green >= 256
+      || blue < 0
+      || blue >= 256,
+    Error(Nil),
+  )
 
-  let red_string = int.to_base16(red) |> string.pad_left(to: 2, with: "0")
-  let green_string = int.to_base16(green) |> string.pad_left(to: 2, with: "0")
-  let blue_string = int.to_base16(blue) |> string.pad_left(to: 2, with: "0")
-
-  let color = Color("#" <> red_string <> green_string <> blue_string)
+  let color = Color(red:, green:, blue:)
   Ok(color)
 }
 
+@internal
 pub fn color_to_string(color: Color) -> String {
-  color.color
+  let red_string = int.to_base16(color.red) |> string.pad_left(to: 2, with: "0")
+  let green_string =
+    int.to_base16(color.green) |> string.pad_left(to: 2, with: "0")
+  let blue_string =
+    int.to_base16(color.blue) |> string.pad_left(to: 2, with: "0")
+
+  "#" <> red_string <> green_string <> blue_string
 }
 
+/// Configures how your snake looks.
 pub type SnakeConfig {
   SnakeConfig(
     /// Version of the Battlesnake API implemented by this Battlesnake. Currently only API version 1 is valid. Example: "1"
     apiversion: String,
     /// Username of the author of this Battlesnake. If provided, this will be used to verify ownership. Example: "BattlesnakeOfficial"
     author: Option(String),
-    /// Hex color code used to display this Battlesnake. Must start with "#", followed by 6 hexadecimal characters. Example: "#888888"
+    /// Color of the Battlesnake.
     color: Option(Color),
     /// Head customization. Example: "default"
     head: Option(String),
     /// Tail customization. Example: "default"
     tail: Option(String),
-    /// optional version string for your Battlesnake. This value is not used in gameplay, but can be useful for tracking deployments on your end.
+    /// Optional version string for your Battlesnake. This value is not used in gameplay, but can be useful for tracking deployments on your end.
     version: Option(String),
   )
 }
 
+/// Create a base Battlesnake config
 pub fn config() -> SnakeConfig {
   SnakeConfig(
     apiversion: "1",
@@ -113,22 +138,27 @@ pub fn config() -> SnakeConfig {
   )
 }
 
+/// Add your Battlesnake username. If provided, this will be used to verify ownership. Example: "BattlesnakeOfficial"
 pub fn with_author(battlesnake: SnakeConfig, author: String) -> SnakeConfig {
   SnakeConfig(..battlesnake, author: Some(author))
 }
 
+/// Add a color to your Battlesnake
 pub fn with_color(battlesnake: SnakeConfig, color: Color) -> SnakeConfig {
   SnakeConfig(..battlesnake, color: Some(color))
 }
 
+/// Add a head customization
 pub fn with_head(battlesnake: SnakeConfig, head: String) -> SnakeConfig {
   SnakeConfig(..battlesnake, head: Some(head))
 }
 
+/// Add a head customization
 pub fn with_tail(battlesnake: SnakeConfig, tail: String) -> SnakeConfig {
   SnakeConfig(..battlesnake, tail: Some(tail))
 }
 
+/// Add an optional version string to your Battlesnake. This value is not used in gameplay, but can be useful for tracking deployments on your end.
 pub fn with_version(battlesnake: SnakeConfig, version: String) -> SnakeConfig {
   SnakeConfig(..battlesnake, version: Some(version))
 }
@@ -150,6 +180,9 @@ fn config_to_json(battlesnake: SnakeConfig) -> Json {
   ])
 }
 
+/// Use this function if your algorithm doesn't need to persist any state
+/// between moves. The returned handler ignores `/start` and `/end` requests and
+/// call your `on_move` function on every turn.
 pub fn simple(
   config config: SnakeConfig,
   on_move callback: fn(GameState) -> Move,
@@ -166,9 +199,10 @@ pub fn simple(
         use <- wisp.require_method(request, http.Post)
         use json <- wisp.require_json(request)
 
-        let _ = gamestate.decode(json)
-
-        wisp.ok()
+        case gamestate.decode(json) {
+          Ok(_) -> wisp.ok()
+          Error(_) -> wisp.bad_request()
+        }
       }
       ["move"] -> {
         use <- wisp.require_method(request, http.Post)
@@ -176,8 +210,8 @@ pub fn simple(
 
         case gamestate.decode(json) {
           Error(_) -> wisp.bad_request()
-          Ok(turn) -> {
-            callback(turn)
+          Ok(gamestate) -> {
+            callback(gamestate)
             |> move_to_json
             |> json.to_string_builder
             |> wisp.json_response(200)
@@ -188,9 +222,10 @@ pub fn simple(
         use <- wisp.require_method(request, http.Post)
         use json <- wisp.require_json(request)
 
-        let _ = gamestate.decode(json)
-
-        wisp.ok()
+        case gamestate.decode(json) {
+          Ok(_) -> wisp.ok()
+          Error(_) -> wisp.bad_request()
+        }
       }
       _ -> wisp.not_found()
     }
@@ -228,6 +263,7 @@ fn try(result: Result(a, b), on_error: fn() -> c, fun: fn(a) -> c) -> c {
   }
 }
 
+/// This function lets you persist state between turns per game.
 pub fn stateful(
   config config: SnakeConfig,
   on_start start: fn(GameState) -> state,
