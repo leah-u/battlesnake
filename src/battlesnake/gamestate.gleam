@@ -2,19 +2,25 @@ import decode
 import gleam/dynamic.{type Dynamic}
 import gleam/result
 
-/// This gets sent by the server every time a game starts, ends, or a turn is requested
+/// This gets sent by the server every time a game starts, ends, or a turn is requested.
 pub type GameState {
-  GameState(game: Game, turn: Int, board: Board, you: Battlesnake)
+  GameState(
+    game: Game,
+    /// Turn number (starting at 0 for new games).
+    turn: Int,
+    board: Board,
+    you: Battlesnake,
+  )
 }
 
-/// Holds general information about the current game
+/// Holds general information about the current game.
 pub type Game {
   Game(
     /// A unique identifier for this game.
     id: String,
     /// Information about the ruleset being used to run this game.
     ruleset: Ruleset,
-    /// The name of the map being played on. Example: "standard"
+    /// The name of the map being played on.
     map: String,
     /// How much time your snake has to respond to requests for this game in milliseconds. 
     timeout: Int,
@@ -30,20 +36,28 @@ pub type Game {
   )
 }
 
+/// A position on the game board. (0,0) is in the bottom left.
 pub type Position {
   Position(x: Int, y: Int)
 }
 
 pub type Board {
   Board(
+    /// The number of rows in the y-axis of the game board.
     height: Int,
+    /// The number of columns in the x-axis of the game board.
     width: Int,
+    /// List of coordinates representing food locations on the game board.
     food: List(Position),
+    /// List of coordinates representing hazardous locations on the game board. 
     hazards: List(Position),
+    /// Array of Battlesnake Objects representing all Battlesnakes remaining on
+    /// the game board (including yourself if you haven't been eliminated).
     snakes: List(Battlesnake),
   )
 }
 
+/// A Battlesnake on the board.
 pub type Battlesnake {
   Battlesnake(
     /// Unique identifier for this Battlesnake in the context of the current game.
@@ -59,18 +73,36 @@ pub type Battlesnake {
     /// Battlesnake timed out and failed to respond, the game timeout will be
     /// returned (`game.timeout`).
     latency: String,
+    /// Coordinates for this Battlesnake's head. Equivalent to the first element of the body list.
     head: Position,
+    /// Length of this Battlesnake from head to tail. Equivalent to the length of the body list.
     length: Int,
+    /// Message shouted by this Battlesnake on the previous turn.
     shout: String,
+    /// The squad that the Battlesnake belongs to. Used to identify squad members in Squad Mode games.
     squad: String,
-    customizations: Nil,
+    /// The collection of customizations that control how this Battlesnake is displayed.
+    customizations: Customizations,
   )
 }
 
-pub type Ruleset {
-  Ruleset(name: String, version: String, settings: RulesetSettings)
+/// The collection of customizations that control how this Battlesnake is displayed.
+pub type Customizations {
+  Customizations(color: String, head: String, tail: String)
 }
 
+pub type Ruleset {
+  Ruleset(
+    /// Name of the ruleset being used to run this game.
+    name: String,
+    /// The release version of the [Rules](https://github.com/BattlesnakeOfficial/rules) module used in this game.
+    version: String,
+    /// A collection of specific settings being used by the current game that control how the rules are applied.
+    settings: RulesetSettings,
+  )
+}
+
+/// A collection of specific settings being used by the current game that control how the rules are applied.
 pub type RulesetSettings {
   RulesetSettings(
     /// Percentage chance of spawning a new food every round.
@@ -79,11 +111,14 @@ pub type RulesetSettings {
     minimum_food: Int,
     /// Health damage a snake will take when ending its turn in a hazard. This stacks on top of the regular 1 damage a snake takes per turn.
     hazard_damage_per_turn: Int,
+    /// Ruleset settings for the Royale gamemode.
     royale: RoyaleSettings,
+    /// Ruleset settings for the Squad gamemode.
     squad: SquadSettings,
   )
 }
 
+/// Ruleset settings for the Royale gamemode.
 pub type RoyaleSettings {
   RoyaleSettings(
     /// In Royale mode, the number of turns between generating new hazards (shrinking the safe board space).
@@ -91,6 +126,7 @@ pub type RoyaleSettings {
   )
 }
 
+/// Ruleset settings for the Squad gamemode.
 pub type SquadSettings {
   SquadSettings(
     /// In Squad mode, allow members of the same squad to move over each other without dying.
@@ -191,6 +227,18 @@ fn position_decoder() -> decode.Decoder(Position) {
   |> decode.field("y", decode.int)
 }
 
+fn customizations_decoder() -> decode.Decoder(Customizations) {
+  decode.into({
+    use color <- decode.parameter
+    use head <- decode.parameter
+    use tail <- decode.parameter
+    Customizations(color:, head:, tail:)
+  })
+  |> decode.field("color", decode.string)
+  |> decode.field("head", decode.string)
+  |> decode.field("tail", decode.string)
+}
+
 fn snake_decoder() -> decode.Decoder(Battlesnake) {
   decode.into({
     use id <- decode.parameter
@@ -202,7 +250,7 @@ fn snake_decoder() -> decode.Decoder(Battlesnake) {
     use length <- decode.parameter
     use shout <- decode.parameter
     use squad <- decode.parameter
-    // use customizations <- decode.parameter
+    use customizations <- decode.parameter
     Battlesnake(
       id:,
       name:,
@@ -213,7 +261,7 @@ fn snake_decoder() -> decode.Decoder(Battlesnake) {
       length:,
       shout:,
       squad:,
-      customizations: Nil,
+      customizations:,
     )
   })
   |> decode.field("id", decode.string)
@@ -225,6 +273,7 @@ fn snake_decoder() -> decode.Decoder(Battlesnake) {
   |> decode.field("length", decode.int)
   |> decode.field("shout", decode.string)
   |> decode.field("squad", decode.string)
+  |> decode.field("customizations", customizations_decoder())
 }
 
 fn game_decoder() -> decode.Decoder(Game) {

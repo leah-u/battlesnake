@@ -11,6 +11,7 @@ import gleam/result
 import gleam/string
 import wisp
 
+/// The direction for your Battlesnake to move in.
 pub type Direction {
   Up
   Down
@@ -27,7 +28,7 @@ fn direction_to_string(direction: Direction) -> String {
   }
 }
 
-/// The response to move requests
+/// The response to move requests.
 pub type Move {
   Move(direction: Direction, shout: Option(String))
 }
@@ -56,13 +57,14 @@ fn move_to_json(move: Move) -> Json {
   ])
 }
 
+/// A representation of the color of a Battlesnake
 pub opaque type Color {
   Color(red: Int, green: Int, blue: Int)
 }
 
-/// Convert a hex string to a Battlesnake color
+/// Convert a hex string to a Battlesnake color.
 /// 
-/// Accepts the formats '#000000' or '000000'
+/// Accepts the formats '#000000' or '000000'.
 pub fn color_from_hex(color: String) -> Result(Color, Nil) {
   use hex <- result.try(case color, string.length(color) {
     "#" <> rest, 7 -> Ok(rest)
@@ -76,8 +78,9 @@ pub fn color_from_hex(color: String) -> Result(Color, Nil) {
   color_from_rgb(red, green, blue)
 }
 
-/// Create a Battlesnake color from red, green and blue components
-/// Each value must be in the range 0..255
+/// Create a Battlesnake color from red, green and blue components.
+/// 
+/// Each value must be in the range 0..255.
 pub fn color_from_rgb(
   r red: Int,
   g green: Int,
@@ -126,7 +129,7 @@ pub type SnakeConfig {
   )
 }
 
-/// Create a base Battlesnake config
+/// Create a base Battlesnake config.
 pub fn config() -> SnakeConfig {
   SnakeConfig(
     apiversion: "1",
@@ -138,22 +141,22 @@ pub fn config() -> SnakeConfig {
   )
 }
 
-/// Add your Battlesnake username. If provided, this will be used to verify ownership. Example: "BattlesnakeOfficial"
+/// Add your Battlesnake username. If provided, this will be used to verify ownership.
 pub fn with_author(battlesnake: SnakeConfig, author: String) -> SnakeConfig {
   SnakeConfig(..battlesnake, author: Some(author))
 }
 
-/// Add a color to your Battlesnake
+/// Add a color to your Battlesnake.
 pub fn with_color(battlesnake: SnakeConfig, color: Color) -> SnakeConfig {
   SnakeConfig(..battlesnake, color: Some(color))
 }
 
-/// Add a head customization
+/// Add a head customization.
 pub fn with_head(battlesnake: SnakeConfig, head: String) -> SnakeConfig {
   SnakeConfig(..battlesnake, head: Some(head))
 }
 
-/// Add a head customization
+/// Add a head customization.
 pub fn with_tail(battlesnake: SnakeConfig, tail: String) -> SnakeConfig {
   SnakeConfig(..battlesnake, tail: Some(tail))
 }
