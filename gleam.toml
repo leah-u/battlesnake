@@ -1,11 +1,13 @@
 name = "battlesnake"
 version = "0.1.0"
-
 description = "A Gleam wrapper for the Battlesnake API"
+
 licences = ["MIT"]
+
 repository = { type = "github", user = "leah-u", repo = "battlesnake" }
 links = [{ title = "Battlesnake Docs", href = "https://docs.battlesnake.com/" }]
 
+target = "erlang"
 gleam = ">= 1.4.0"
 
 [dependencies]
