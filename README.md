@@ -17,7 +17,7 @@ import battlesnake
 import battlesnake/gamestate.{type GameState}
 import gleam/erlang/process
 import mist
-import wisp
+import wisp/wisp_mist
 
 fn on_move(gamestate: GameState) -> battlesnake.Move {
   // This function gets called every turn
@@ -37,7 +37,7 @@ pub fn main() {
 
   let assert Ok(_) =
     handler
-    |> wisp.mist_handler("")
+    |> wisp_mist.handler("")
     |> mist.new
     |> mist.port(8000)
     |> mist.start_http
@@ -53,7 +53,7 @@ import battlesnake
 import battlesnake/gamestate.{type GameState}
 import gleam/erlang/process
 import mist
-import wisp
+import wisp/wisp_mist
 
 type MyState {
   MyState
@@ -82,7 +82,7 @@ pub fn main() {
 
   let assert Ok(_) =
     handler
-    |> wisp.mist_handler("")
+    |> wisp_mist.handler("")
     |> mist.new
     |> mist.port(8000)
     |> mist.start_http
